@@ -63,7 +63,6 @@ AsymmetricKeyPair<PublicKey, PrivateKey> getKeyPair() {
 /// The proof can be used for both token requests and protected resource access.
 ///
 /// Parameters:
-/// - [clientId]: The OAuth client identifier
 /// - [endpoint]: The complete URL of the endpoint being accessed
 /// - [method]: The HTTP method of the request (e.g., 'POST', 'GET')
 /// - [dPoPNonce]: The DPoP nonce provided by the server
@@ -95,14 +94,13 @@ AsymmetricKeyPair<PublicKey, PrivateKey> getKeyPair() {
 /// Payload:
 /// ```json
 /// {
-///   "sub": "client_id",
 ///   "htu": "endpoint_url",
 ///   "htm": "http_method",
 ///   "exp": timestamp + 60,
 ///   "jti": "random_unique_id",
 ///   "iat": timestamp,
 ///   "nonce": "dpop_nonce",
-///   "iss": "client_id_or_auth_server",
+///   "iss": "optional_auth_server",
 ///   "ath": "optional_access_token_hash"
 /// }
 /// ```
@@ -112,7 +110,6 @@ AsymmetricKeyPair<PublicKey, PrivateKey> getKeyPair() {
 /// Example:
 /// ```dart
 /// final dpopHeader = getDPoPHeader(
-///   clientId: 'client123',
 ///   endpoint: 'https://bsky.social/...',
 ///   method: 'POST',
 ///   dPoPNonce: 'server-provided-nonce',
@@ -132,7 +129,6 @@ AsymmetricKeyPair<PublicKey, PrivateKey> getKeyPair() {
 /// Note: The proof has a short expiration time (60 seconds)
 /// to prevent replay attacks. A new proof should be generated for each request.
 String getDPoPHeader({
-  required String clientId,
   required String endpoint,
   required String method,
   required String dPoPNonce,
@@ -157,7 +153,6 @@ String getDPoPHeader({
   final epoch = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
 
   final payload = <String, dynamic>{
-    'sub': clientId,
     'htu': endpoint,
     'htm': method,
     'exp': epoch + 60,
@@ -169,8 +164,6 @@ String getDPoPHeader({
   if (authorizationServer != null && accessToken != null) {
     payload['iss'] = authorizationServer;
     payload['ath'] = hashS256(accessToken);
-  } else {
-    payload['iss'] = clientId;
   }
 
   final headerBase64 =

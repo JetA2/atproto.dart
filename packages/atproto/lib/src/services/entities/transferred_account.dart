@@ -20,10 +20,4 @@ class TransferredAccount with _$TransferredAccount {
 
   factory TransferredAccount.fromJson(Map<String, Object?> json) =>
       _$TransferredAccountFromJson(json);
-
-  /// Returns decoded [accessJwt].
-  Jwt get accessToken => decodeJwt(accessJwt);
-
-  /// Returns decoded [refreshJwt].
-  Jwt get refreshToken => decodeJwt(refreshJwt);
 }

@@ -1,4 +1,6 @@
-// ignore_for_file: invalid_annotation_target
+import 'package:json_annotation/json_annotation.dart';
+
+part 'session.g.dart';
 
 /// A class that manages OAuth 2.0 session information with
 /// DPoP (Demonstrating Proof of Possession) support.
@@ -26,6 +28,7 @@
 /// Example:
 /// ```dart
 /// final session = OAuthSession(
+///   authorizationServer: Uri.https('as.example.com'),
 ///   accessToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6ImF0K2pwdCJ9...',
 ///   refreshToken: 'eyJhbGciOiJSUzI1NiIsInR5cCI6InJ0K2pwdCJ9...',
 ///   tokenType: 'DPoP',
@@ -37,12 +40,14 @@
 ///   $privateKey: 'eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2Iiwia2lkIjoi...',
 /// );
 /// ```
+@JsonSerializable()
 final class OAuthSession {
   /// Creates an OAuth session with DPoP support.
   ///
   /// All parameters are required as per OAuth 2.0 DPoP specifications.
   ///
   /// Parameters:
+  /// - [authorizationServer]: Uri of the token issuing server
   /// - [accessToken]: JWT access token bound to the DPoP proof
   /// - [refreshToken]: JWT refresh token for access token renewal
   /// - [tokenType]: Must be 'DPoP' as per RFC 9449
@@ -53,6 +58,7 @@ final class OAuthSession {
   /// - [$publicKey]: Base64URL encoded public key for DPoP proof verification
   /// - [$privateKey]: Base64URL encoded private key for DPoP proof generation
   OAuthSession({
+    required this.authorizationServer,
     required this.accessToken,
     required this.refreshToken,
     required this.tokenType,
@@ -63,6 +69,12 @@ final class OAuthSession {
     required this.$publicKey,
     required this.$privateKey,
   });
+
+  /// The Uri of the token issuing server.
+  ///
+  /// This is required when making DPoP requests to PDS endpoints.
+  /// See https://docs.bsky.app/docs/advanced-guides/oauth-client
+  final Uri authorizationServer;
 
   /// The DPoP-bound JWT access token.
   ///
@@ -117,4 +129,8 @@ final class OAuthSession {
   /// Used to sign DPoP proof JWTs. Must be kept secure
   /// and never exposed. Typically an EC P-256 key.
   final String $privateKey;
+
+  factory OAuthSession.fromJson(Map<String, dynamic> json) =>
+      _$OAuthSessionFromJson(json);
+  Map<String, dynamic> toJson() => _$OAuthSessionToJson(this);
 }

@@ -177,16 +177,8 @@ Future<OAuthSession> get _oAuthSession async {
   print(session.$publicKey);
   print(session.$privateKey);
 
-  // You can restore OAuthSession from stored keys
-  final restoredSession = restoreOAuthSession(
-    accessToken: session.accessToken,
-    refreshToken: session.refreshToken,
-    publicKey: session.$publicKey,
-    privateKey: session.$privateKey,
-  );
-
   // If you want to refresh session
   // final refreshed = await oauth.refresh(bsky.oAuthSession!);
 
-  return restoredSession;
+  return session;
 }

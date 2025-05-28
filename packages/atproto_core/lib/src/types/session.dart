@@ -3,8 +3,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 // Project imports:
 import '../utils/annotations.dart';
-import '../utils/jwt.dart';
-import '../utils/jwt_decoder.dart';
 
 part 'session.freezed.dart';
 part 'session.g.dart';
@@ -49,18 +47,10 @@ class Session with _$Session {
 extension SessionExtension on Session {
   bool get isEmailConfirmed => emailConfirmed;
 
-  /// Returns decoded [accessJwt].
-  Jwt get accessTokenJwt => decodeJwt(accessJwt);
-
-  /// Returns decoded [refreshJwt].
-  Jwt get refreshTokenJwt => decodeJwt(refreshJwt);
-
   /// Returns PDS endpoint like `porcini.us-east.host.bsky.network` dynamically
   /// based on this [Session].
   String? get atprotoPdsEndpoint {
     try {
-      if (didDoc == null) return accessTokenJwt.atprotoPdsEndpoint;
-
       final services = didDoc?['service'] ?? const <Map<String, dynamic>>[];
       for (final service in services) {
         if (service['serviceEndpoint'] != null &&

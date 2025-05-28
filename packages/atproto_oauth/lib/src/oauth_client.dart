@@ -233,7 +233,6 @@ final class OAuthClient {
     final privateKey = encodePrivateKey(keyPair.privateKey as ECPrivateKey);
 
     final dPoPHeader = getDPoPHeader(
-      clientId: metadata.clientId,
       endpoint: endpoint.toString(),
       method: 'POST',
       dPoPNonce: context.dpopNonce,
@@ -272,6 +271,7 @@ final class OAuthClient {
     }
 
     return OAuthSession(
+      authorizationServer: Uri.https(service),
       accessToken: body['access_token'],
       refreshToken: body['refresh_token'],
       tokenType: body['token_type'],
@@ -289,18 +289,23 @@ final class OAuthClient {
   ///
   /// This method exchanges a refresh token for a new access token while
   /// maintaining the DPoP binding. It reuses the original DPoP key pair
-  /// and handles nonce updates
-  /// from the authorization server.
+  /// and handles nonce updates from the authorization server.
   ///
   /// [session] The current [OAuthSession] containing the refresh token
   /// and DPoP credentials to be used for token refresh. The session must
-  /// include valid DPoP keys and nonce.
+  /// include valid DPoP keys.
   ///
-  /// Returns a [Future<OAuthSession>] containing the new access token,
-  /// possibly a new refresh token, and updated session metadata.
+  /// [dPoPNonce] Optional dPoP nonce to use for creating the dPoP header.
+  /// If not specified, the nonce from the provided session is used.
   ///
-  /// The DPoP keys are preserved from the original session while
-  /// the nonce may be updated.
+  /// Returns a [Future<(OAuthSession,String)>] containing the new access token,
+  /// possibly a new refresh token, and updated session metadata. The nonce
+  /// issued by the authorization server is returned separately in case the
+  /// client user wants to cache it.
+  ///
+  /// The DPoP keys are preserved from the original session.
+  /// The session nonce is not updated since the client does not know if
+  /// the authorization server is also the PDS.
   ///
   /// Throws:
   /// - [OAuthException] in the following cases:
@@ -315,15 +320,16 @@ final class OAuthClient {
   /// ```
   ///
   /// The method maintains DPoP proof-of-possession by:
-  /// 1. Reusing the DPoP key pair from the original session
-  /// 2. Creating a new DPoP proof header for the refresh request
-  /// 3. Updating the DPoP nonce if provided in the response
+  /// - Reusing the DPoP key pair from the original session
+  /// - Creating a new DPoP proof header for the refresh request
   ///
   /// The returned [OAuthSession] preserves the DPoP binding by:
   /// - Keeping the same $publicKey and $privateKey
-  /// - Updating the $dPoPNonce if provided by the server
   /// - Maintaining the DPoP-bound token type
-  Future<OAuthSession> refresh(final OAuthSession session) async {
+  Future<(OAuthSession, String)> refresh(
+    final OAuthSession session, [
+    String? dPoPNonce,
+  ]) async {
     if (session.refreshToken.isEmpty) {
       throw OAuthException('No refresh token available');
     }
@@ -331,10 +337,9 @@ final class OAuthClient {
     final endpoint = Uri.https(service, '/oauth/token');
 
     final dPoPHeader = getDPoPHeader(
-      clientId: metadata.clientId,
       endpoint: endpoint.toString(),
       method: 'POST',
-      dPoPNonce: session.$dPoPNonce,
+      dPoPNonce: dPoPNonce ?? session.$dPoPNonce,
       publicKey: session.$publicKey,
       privateKey: session.$privateKey,
     );
@@ -355,27 +360,29 @@ final class OAuthClient {
 
     if (body['error'] == 'use_dpop_nonce' &&
         response.headers.containsKey('dpop-nonce')) {
-      session.$dPoPNonce = response.headers['dpop-nonce']!;
-
       // Retry with next DPoP nonce
-      return await refresh(session);
+      return await refresh(session, response.headers['dpop-nonce']!);
     }
 
     if (response.statusCode != 200) {
       throw OAuthException(response.body);
     }
 
-    return OAuthSession(
-      accessToken: body['access_token'],
-      refreshToken: body['refresh_token'],
-      tokenType: body['token_type'],
-      scope: body['scope'],
-      expiresAt:
-          DateTime.now().toUtc().add(Duration(seconds: body['expires_in'])),
-      sub: body['sub'],
-      $dPoPNonce: response.headers['dpop-nonce']!,
-      $publicKey: session.$publicKey,
-      $privateKey: session.$privateKey,
+    return (
+      OAuthSession(
+        authorizationServer: Uri.https(service),
+        accessToken: body['access_token'],
+        refreshToken: body['refresh_token'],
+        tokenType: body['token_type'],
+        scope: body['scope'],
+        expiresAt:
+            DateTime.now().toUtc().add(Duration(seconds: body['expires_in'])),
+        sub: body['sub'],
+        $dPoPNonce: session.$dPoPNonce,
+        $publicKey: session.$publicKey,
+        $privateKey: session.$privateKey,
+      ),
+      response.headers['dpop-nonce']!,
     );
   }
 }

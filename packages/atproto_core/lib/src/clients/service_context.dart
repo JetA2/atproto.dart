@@ -7,7 +7,6 @@ import 'package:xrpc/xrpc.dart' as xrpc;
 // Project imports:
 import '../../atproto_oauth.dart';
 import '../const.dart';
-import '../types/oauth_session.dart';
 import '../types/session.dart';
 import 'challenge.dart';
 import 'retry_config.dart';
@@ -27,10 +26,7 @@ base class ServiceContext {
     final xrpc.PostClient? mockedPostClient,
   })  : _headers = headers,
         _protocol = protocol ?? defaultProtocol,
-        service = service ??
-            session?.atprotoPdsEndpoint ??
-            oAuthSession?.atprotoPdsEndpoint ??
-            defaultService,
+        service = service ?? session?.atprotoPdsEndpoint ?? defaultService,
         relayService = relayService ?? defaultRelayService,
         _challenge = Challenge(RetryPolicy(retryConfig)),
         _timeout = timeout ?? defaultTimeout,
@@ -153,12 +149,10 @@ base class ServiceContext {
     }
 
     if (oAuthSession != null) {
-      final jwt = oAuthSession!.accessTokenJwt;
       final dPoPHeader = getDPoPHeader(
-        clientId: jwt.clientId!,
-        endpoint: endpoint.toString(),
+        endpoint: endpoint.toString().split(RegExp(r'[?#]')).first,
         method: method,
-        authorizationServer: jwt.iss,
+        authorizationServer: oAuthSession!.authorizationServer.toString(),
         accessToken: oAuthSession!.accessToken,
         dPoPNonce: oAuthSession!.$dPoPNonce,
         publicKey: oAuthSession!.$publicKey,
